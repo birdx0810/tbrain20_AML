@@ -13,7 +13,8 @@ There are 5023 rows of data (as of 6/16) and 371 unique names (labels). The data
 | name | 該篇新聞焦點人物清單，若沒有則為 `[]` |
 
 
-## API
+## Documentations
 
-[API 開發說明文件] : https://hackmd.io/@UcQg6jwlT_WL_ZNkPZMm6Q/BJfELe_c8
-[API 規格說明文件] : https://hackmd.io/@nqf_7suCTA2B-tYY2TvmYw/r11xDuMoL
+玉山銀行 API 相關文件
+- [API 開發說明文件](https://hackmd.io/@UcQg6jwlT_WL_ZNkPZMm6Q/BJfELe_c8)  
+- [API 規格說明文件](https://hackmd.io/@nqf_7suCTA2B-tYY2TvmYw/r11xDuMoL)  
