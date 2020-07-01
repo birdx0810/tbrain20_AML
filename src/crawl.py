@@ -52,5 +52,46 @@ def crawl():
             except Exception as err:
                 time.sleep(random.random() * 1.5 + 0.5)
 
+def crawl_traverse():
+    SENTENCE_LEN = 25
+    data_path = "../data/tbrain_train_final_0610.csv"
+    df = pd.read_csv(data_path)
+    links = df["hyperlink"].to_list()
+
+    PATH_TO_SAVE = '../data/crawled_news'
+    if not os.path.exists(PATH_TO_SAVE):
+        os.makedirs(PATH_TO_SAVE)
+
+    for idx, link in enumerate(tqdm(links)):
+        try:
+            response = requests.get(link)
+            soup = BeautifulSoup(response.text)
+            paragraphs = []
+            for child in soup.recursiveChildGenerator():
+                name = getattr(child, "name", None)
+
+                # get sentences with character len > 25 and are under <p> tags
+                if name == 'p':
+                    paragraph = child.getText()
+
+                    # Reprogram whitespaces using regular expression
+                    paragraph = re.sub(' +', ' ', paragraph)
+                    paragraph = unicodedata.normalize("NFKC", paragraph)
+
+                    if len(paragraph) > SENTENCE_LEN:
+                        paragraphs.append(paragraph)
+
+            with open(f"{PATH_TO_SAVE}/{idx}.txt", "w") as f:
+                for paragraph in paragraphs:
+                    f.write(paragraph + '\n')
+
+            time.sleep(random.random() * 1.5 + 0.5)
+
+        except:
+            time.sleep(random.random() * 1.5 + 0.5)
+
+    return
+
 if __name__ == "__main__":
-    crawl()
+    # crawl()
+    crawl_traverse()
