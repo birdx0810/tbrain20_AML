@@ -130,3 +130,6 @@ dmypy.json
 
 # Raw dataset
 data/news
+
+# CKIP
+ckip

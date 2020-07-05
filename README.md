@@ -1,9 +1,46 @@
 # tbrain20_AML
 This repository holds the code for 玉山人工智慧公開挑戰賽2020夏季賽.
 
+## Dependencies
+
+### CKIP Tagger
+```
+pip install ckiptagger
+wget http://ckip.iis.sinica.edu.tw/data/ckiptagger/data.zip
+unzip data.zip
+mv data ckip
+```
+
+### SpaCy
+```bash
+python -m spacy download zh_core_web_lg
+```
+
+### Stanza
+```python
+import stanza
+stanza.download("zh")
+```
+
+## TODO:
+- Data Augmentation
+    - 換名字
+    - 找名單
+    - 拿 Label 來爬文
+- Data Analysis
+    - Check news domain
+- Tokenizer
+- Modeling
+- Scorer
+
 ## Dataset
 
-There are 5023 rows of data (as of 6/16) and 371 unique names (labels). The dataset is in `.csv` format `UTF-8` encoding with the below categories:
+- There are 5023 rows of data
+    - 4651 are without labels
+    - The document with most names has 15
+- There are 830 unique names (labels).
+- Max document length is `5538`.
+- The dataset is in `.csv` format `UTF-8` encoding with the below categories:
 
 | 欄位 | 資料說明 |
 | - | - |
@@ -15,7 +52,7 @@ There are 5023 rows of data (as of 6/16) and 371 unique names (labels). The data
 ## Evaluation Metric
 
 <!-- $$
-Score = \sum_{i=1}^N f(news_i)
+Score = \sum_{i=1}^N f(news_i) \\
 f(news_i) = \begin{cases}\begin{aligned}
     1&, \qquad \text{if y} = \varnothing \text{ and p } = \varnothing \\
     0&, \qquad \text{if y} = \varnothing \text{ and p } \neq \varnothing \\
@@ -24,7 +61,7 @@ f(news_i) = \begin{cases}\begin{aligned}
 \end{aligned}\end{cases}
 $$ -->
 
-![](https://i.imgur.com/AZeZ0YN.png)
+![](https://i.imgur.com/elAnnWZ.png)
 
 <!-- $$
 \begin{aligned}
