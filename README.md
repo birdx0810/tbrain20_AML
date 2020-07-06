@@ -3,6 +3,11 @@ This repository holds the code for 玉山人工智慧公開挑戰賽2020夏季�
 
 ## Dependencies
 
+### pip
+```bash
+cat requirements.txt | xargs -n 1 pip install
+```
+
 ### CKIP Tagger
 ```
 pip install ckiptagger
@@ -24,11 +29,12 @@ stanza.download("zh")
 
 ## TODO:
 - Data Augmentation
-    - 換名字
-    - 找名單
-    - 拿 Label 來爬文
+    - [ ] 換名字
+    - [ ] 找名單
+    - [ ] 拿 Label 來爬文
 - Data Analysis
-    - Check news domain
+    - [ ] Find keywords with TF-IDF
+    - [ ] Check news domain
 - Tokenizer
 - Modeling
 - Scorer
