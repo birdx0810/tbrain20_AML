@@ -22,6 +22,14 @@ import stanza
 stanza.download("zh")
 ```
 
+### FastText
+- src/plot_keywords.py
+```bash
+git clone https://github.com/facebookresearch/fastText.git
+cd fastText
+sudo pip install .
+```
+
 ## TODO:
 - Data Augmentation
     - 換名字
