@@ -1,20 +1,24 @@
 # -*- coding: UTF-8 -*-
 
 '''
-API code provided by E-SUN
+API code provided by E-SUN (garbage) and honeytoast
 '''
 from flask import Flask
 from flask import request
 from flask import jsonify
-import datetime
+import flask
+
+import time
+import json
 import hashlib
 import numpy as np
 import pandas as pd
 
 app = Flask(__name__)
+
 ####### PUT YOUR INFORMATION HERE #######
-CAPTAIN_EMAIL = 'my@gmail.com'          #
-SALT = 'my_salt'                        #
+CAPTAIN_EMAIL = 'p76084423@gs.ncku.edu.tw'
+SALT = 'ikm'
 #########################################
 
 def generate_server_uuid(input_string):
@@ -35,7 +39,7 @@ def predict(article):
     """
 
     ####### PUT YOUR MODEL INFERENCING CODE HERE #######
-    prediction = ['aha','danny','jack']
+    prediction = ['aha','danny','王小明']
     
     
     ####################################################
@@ -60,29 +64,50 @@ def _check_datatype_to_list(prediction):
 @app.route('/healthcheck', methods=['POST'])
 def healthcheck():
     """ API for health check """
-    data = request.get_json(force=True)  
-    t = datetime.datetime.now()  
-    ts = str(int(t.utcnow().timestamp()))
-    server_uuid = generate_server_uuid(CAPTAIN_EMAIL+ts)
-    server_timestamp = t.strftime("%Y-%m-%d %H:%M:%S")
-    return jsonify({'esun_uuid': data['esun_uuid'], 'server_uuid': server_uuid, 'captain_email': CAPTAIN_EMAIL, 'server_timestamp': server_timestamp})
+    try:
+        # get request data
+        data = request.get_json(force=True)
+        print(data)
+
+        # generate server uuid
+        server_uuid = generate_server_uuid(CAPTAIN_EMAIL)
+
+        # get response time
+        server_timestamp = int(time.time())
+
+        return jsonify({'esun_uuid': data['esun_uuid'],
+                        'server_uuid': server_uuid,
+                        'captain_email': CAPTAIN_EMAIL,
+                        'server_timestamp': server_timestamp})
+
+    except Exception as err:
+        print(err)
 
 @app.route('/inference', methods=['POST'])
 def inference():
     """ API that return your model predictions when E.SUN calls this API """
-    data = request.get_json(force=True)  
-    esun_timestamp = data['esun_timestamp'] #自行取用
-    
-    t = datetime.datetime.now()  
-    ts = str(int(t.utcnow().timestamp()))
-    server_uuid = generate_server_uuid(CAPTAIN_EMAIL+ts)
-    
+    # get request data
+    data = request.get_json(force=True)
+
+    # generate server uuid
+    server_uuid = generate_server_uuid(CAPTAIN_EMAIL)
+
+    # get request time
+    # esun_timestamp = data['esun_timestamp']
+
+    # get answer
     try:
         answer = predict(data['news'])
     except:
         raise ValueError('Model error.')        
-    server_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return jsonify({'esun_timestamp': data['esun_timestamp'], 'server_uuid': server_uuid, 'answer': answer, 'server_timestamp': server_timestamp, 'esun_uuid': data['esun_uuid']})
+    
+    # get response time
+    server_timestamp = int(time.time())
+
+    return jsonify({'esun_uuid': data['esun_uuid'],
+                    'server_uuid': server_uuid,
+                    'answer': answer,
+                    'server_timestamp': server_timestamp})
 
 if __name__ == "__main__":    
     app.run(host='0.0.0.0', port=8080, debug=True)
