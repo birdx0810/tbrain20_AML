@@ -43,7 +43,7 @@ class Tokenizer(object):
         Returns:
             len(vocab) (int): The vocabulary size
         """
-        return len(vocab)
+        return len(self.vocab)
 
     def build_vocabulary(self, tokens=None, embeddings=None):
         """Builds vocabulary from sentences or pretrained embeddings
@@ -79,6 +79,27 @@ class Tokenizer(object):
                 vector = word[1:]
                 self.vectors.append(vector)
 
+    def clean(self, sentences):
+        """Removes stopwords within the corpus
+        Args:
+            sentences (list): A list of documents(news)
+
+        Returns:
+            cleaned (list): A list of documents with stopwords removed
+        """
+        with open("./utils/stopwords.txt", "r") as f:
+            stopwords = f.readlines()
+            stopwords = set([w for w in stopwords])
+
+        cleaned = []
+
+        for sentence in tqdm(sentences):
+            for stopword in stopwords:
+                sentence = re.sub(stopword, "", sentence)
+            cleaned.append(sentence)
+
+        return cleaned
+
     def tokenize(self, sentences):
         """A tokenizer for tokenizing Chinese characters and English words
         Args:
@@ -90,12 +111,19 @@ class Tokenizer(object):
         tokenized = []
         en = []
         prog = re.compile(r'\s+')
+
         for sentence in tqdm(sentences):
             sentence = unicodedata.normalize("NFKD", sentence.strip())
-            sentence = prog.sub(' ', sentence)
 
-            sentence = "".join([" "+character+" " if re.match(r"[^a-zA-Z]", character) else character for character in sentence])
+            sentence = "".join([
+                " "+character+" "
+                if re.match(r"[^a-zA-Z]", character)
+                else character
+                for character in sentence
+            ])
             tokenized.append(sentence.split())
+
+        print(f"Max Document Length: {max([len(tokens) for tokens in tokenized])}")
 
         self.build_vocabulary(tokenized)
 
@@ -127,11 +155,8 @@ class Tokenizer(object):
         """
         encoded = []
         for sentence in tqdm(tokens):
-            S = [self.bos_token]
-            S.extend(sentence)
-            S.append(self.eos_token)
             tmp = []
-            for token in S:
+            for token in sentence:
                 try:
                     index = self.vocab.index(token)
                     tmp.append(index)
@@ -164,26 +189,47 @@ class Tokenizer(object):
         """Maps labels to their indexes within the document
         Args:
             labels (list): A list of key names of the news
-            tokens (list): A list of news documents that are tokenized
+            documents (list): A list of news documents
         Returns:
             labels (list): Encoded list of documents with the location of label == 1
         """
         encoded = []
-        for idx, document in tqdm(enumerate(tokens)):
-            if labels[idx] is not []:
-                tmp = []
-                for token in document:
-                    for label in labels[idx]:
-                        is_kw = 0
-                        if token in label:
-                            tmp.append(1)
-                            is_kw = 1
-                            break
-                        if is_kw == 0:
-                            tmp.append(0)
-                encoded.append(tmp)
-            else:
-                encoded.append([0 for token in document])
+        for idx, document in enumerate(tqdm(tokens)):
+            tmp = [0 for char in range(len(document))]
+            for name in labels[idx]:
+                if re.match(r"[^a-zA-Z]", name):
+                    pattern = list(name)
+                else:
+                    pattern = name
+                # for indexes in re.finditer(name, document):
+                #     tmp[indexes.span()[0]:indexes.span()[1]] = [1 for _ in range(indexes.span()[1] - indexes.span()[0])]
+                for i in range(len(document)):
+                    if document[i] == pattern[0] and document[i:i+len(pattern)] == pattern:
+                        tmp[i:i+len(pattern)] = [1 for _ in range(len(pattern))]
+            encoded.append(tmp)
+
+        # # Sanity check
+        # for doc, enc in zip(tokens, encoded):
+        #     print(f"{len(doc)}, {len(enc)}")
 
         return encoded
 
+    def save_vocab(self, path=None):
+        '''
+        Dumps vocabulary to path or project's root directory
+        '''
+        if path is not None:
+            with open(f"{path}", "wb") as f:
+                pickle.dump(self.vocab, f)
+        else:
+            raise NameError("Please specify vocabulary to use")
+
+    def load_vocab(self, path=None):
+        '''
+        Load vocabulary from path or project's root directory
+        '''
+        if path is not None:
+            with open(f"{path}", "rb") as f:
+                self.vocab = pickle.load(f)
+        else:
+            raise NameError("Please specify vocabulary to use")

@@ -3,64 +3,61 @@
 ##############################################
 # Import requirements
 ##############################################
+import os
+import pickle
 
 from tqdm import tqdm
+
 import torch
 import torch.nn
 import torch.utils.data
 import numpy as np
 import pandas as pd
-
-# from CIDEr.eval import CIDErEvalCap as ciderEval
-import os
-import pickle
+import sklearn
 
 # Local Modules
-import tokenizer
-import preprocessor
 import dataset
-import encoder
-import decoder
+import model
+import preprocessor
+import tokenizer
 
 ##############################################
 # Hyperparameters setup
 ##############################################
 
-experiment_no = 3
+experiment_no = 1
 
 config = {}
 
 config["seed"] = 7
-config["batch_size"] = 4
+config["batch_size"] = 32
 config["epochs"] = 200
+config["accum_step"] = 1
+config["max_seq_len"] = 512
 
 # Optimizer
-config["learning_rate"] = 1e-4
+config["learning_rate"] = 1e-5
 config["grad_clip_norm"] = 1.0
 
-# Encoder Architecture
-config["vgg"] = 11
-config["batch_norm"] = True
-
-# Decoder Architecture
-config["rnn"] = "GRU"
-config["num_rnn_layers"] = 2
+# Model Hyperparameters
+config["num_rnn_layers"] = 1
 config["num_linear_layers"] = 1
 config["hidden_dim"] = 300
 config["embedding_dim"] = 100
-config["dropout"] = 0
+config["bidirectional"] = True
+config["dropout"] = 0.1
 
 ##############################################
 # Initialize random seed and CUDA
 ##############################################
 
-device = torch.device('cpu')
+device = torch.device("cpu")
 np.random.seed(config["seed"])
 torch.manual_seed(config["seed"])
 
 if torch.cuda.is_available():
     print("Using CUDA")
-    device = torch.device('cuda:0')
+    device = torch.device("cuda:0")
     torch.cuda.manual_seed(config["seed"])
     torch.cuda.manual_seed_all(config["seed"])
     torch.backends.cudnn.deterministic = True
@@ -69,10 +66,30 @@ else:
     print("Using CPU")
 
 ##############################################
-# Preprocess and Load Training data
+# Tokenizer
 ##############################################
 
-train_data, _ = preprocessor.get_data(seed=config["seed"], num_data=1000)
+with open("./data/tokenizer", "rb") as fb:
+    t = pickle.load(fb)
+# t = tokenizer.Tokenizer()
+
+##############################################
+# Load Training data
+##############################################
+
+with open("./data/train.pickle", "rb") as fb:
+    train_dataset = pickle.load(fb)
+
+with open("./data/test.pickle", "rb") as fb:
+    test_dataset = pickle.load(fb)
+
+train_data = dataset.AMLDataset(config=config,
+                                dataset=train_dataset,
+                                tokenizer=t)
+
+test_data = dataset.AMLDataset(config=config,
+                               dataset=test_dataset,
+                               tokenizer=t)
 
 train_loader = torch.utils.data.DataLoader(train_data,
                                            batch_size=config["batch_size"],
@@ -80,36 +97,28 @@ train_loader = torch.utils.data.DataLoader(train_data,
                                            shuffle=True,
                                            num_workers=1)
 
+test_loader = torch.utils.data.DataLoader(test_data,
+                                          batch_size=config["batch_size"],
+                                          collate_fn=test_data.collate_fn,
+                                          num_workers=1)
+
 ##############################################
 # Construct model
 ##############################################
 
-t = tokenizer.Tokenizer()
-t.load_vocab("./vocab/glove100_vocab.pickle")
-with open("./vocab/glove100d.vec", "rb") as f:
-    t.vectors = pickle.load(f)
+model = model.AMRBaseline(config, t)
 
-encoder = encoder.VGGEncoder(config=config, in_features=3)
-
-decoder = decoder.RNNDecoder(config=config, tokenizer=t)
-
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.BCELoss()
 
 no_decay = ["bias", "LayerNorm.weight"]
 optimizer_grouped_parameters = [
     {
-        "params": [p for n, p in encoder.named_parameters() if not any(nd in n for nd in no_decay)],
+        "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
         "weight_decay": 0.01,
     },
-    {"params": [p for n, p in encoder.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
-    {
-        "params": [p for n, p in decoder.named_parameters() if not any(nd in n for nd in no_decay)],
-        "weight_decay": 0.01,
-    },
-    {"params": [p for n, p in decoder.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
+    {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], "weight_decay": 0.0},
 ]
 
-# optimizer = torch.optim.AdamW(decoder.parameters(), lr=config["learning_rate"])
 optimizer = torch.optim.AdamW(
     optimizer_grouped_parameters,
     lr=config["learning_rate"]
@@ -119,25 +128,23 @@ optimizer = torch.optim.AdamW(
 # Train
 ##############################################
 
-save_path = f'models/{experiment_no}'
+save_path = f"models/{experiment_no}"
 if not os.path.exists(save_path):
     os.mkdir(save_path)
 
-config_save_path = f'{save_path}/config.pickle'
-tokenizer_save_path = f'{save_path}/tokenizer.pickle'
+config_save_path = f"{save_path}/config.pickle"
+tokenizer_save_path = f"{save_path}/tokenizer.pickle"
 
-with open(config_save_path, 'wb') as f:
+with open(config_save_path, "wb") as f:
     pickle.dump(config, f)
 
-with open(tokenizer_save_path, 'wb') as f:
+with open(tokenizer_save_path, "wb") as f:
     pickle.dump(t, f)
 
 def train_model(model, device, data_loader, criterion, optimizer, num_epochs, save_path):
 
     model_save_path = f"{save_path}/model.pt"
-
     model.to(device)
-
     model.train()
     
     best_loss = None
@@ -146,34 +153,74 @@ def train_model(model, device, data_loader, criterion, optimizer, num_epochs, sa
         print(f"epoch: {epoch}")
         total_loss = 0
 
-        for document, names in tqdm(data_loader):
-            document = document.to(device)
-            # captions = captions.to(device)
+        for documents, label in tqdm(data_loader):
+            documents = documents.to(device)
+            label = label.to(device)
 
-            input_captions = captions[:, :-1].to(device)
-            output_captions = captions[:, 1:].to(device)
+            pred = model(documents)
 
-            features = model(images)
+            optimizer.zero_grad()
 
-            # B x V x S
-            outputs = outputs.transpose(-1,-2)
-
-            loss = criterion(outputs, output_captions)
+            loss = criterion(pred, label)
             total_loss += float(loss) / len(train_data)
+
+            # Gradient Accumulation
+            # accumulation_loss += loss/config["accum_step"]
 
             optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(decoder.parameters(), config["grad_clip_norm"])
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config["grad_clip_norm"])
             optimizer.step()
 
-        print(f'loss: {total_loss:.10f}')
+            # if batch_index % config["accum_step"] == 0:
+            #     accumulation_loss.backward()
+            #     torch.nn.utils.clip_grad_norm_(model.parameters(), config["grad_clip_norm"])
+            #     optimizer.step()
+
+            #     accumulation_loss.detach()
+            #     del accumulation_loss
+            #     accumulation_loss = 0
+
+        print(f"loss: {total_loss:.10f}")
 
         if (best_loss is None) or (total_loss < best_loss):
-            torch.save(encoder.state_dict(), encoder_save_path)
-            torch.save(decoder.state_dict(), decoder_save_path)
+            torch.save(model.state_dict(), model_save_path)
             best_loss = total_loss
 
-    print(f'best loss: {best_loss:.10f}')
+    print(f"best loss: {best_loss:.10f}")
 
 train_model(model, device, train_loader, criterion, optimizer, config["epochs"], save_path)
 
+##############################################
+# Validation
+##############################################
+
+def validate(model, device, data_loader, tokenizer, load_path, threshold=0.5):
+
+    model.to(device)
+    model.eval()
+
+    answers = []
+
+    for index, (documents, label) in enumerate(tqdm(data_loader)):
+        documents = documents.to(device)
+        label = label.to(device)
+
+        # Get the indexes of the answers higher
+        pred_batch = model(documents)
+
+        for pred in pred_batch:
+            # print(pred.size())
+            # print(f"Max: {pred.max()}, min: {pred.min()}")
+            # for idx, word in enumerate(pred):
+            #     if word >= threshold:
+            #         tmp.append([idx, word])
+            answers.append([
+                (idx, word)
+                for idx, word in enumerate(pred)
+                if word >= threshold
+            ])
+
+
+    # DOC x (IDX (N), PROB (1))
+    return answers
