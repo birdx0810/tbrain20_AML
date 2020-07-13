@@ -8,6 +8,12 @@ This repository holds the code for 玉山人工智慧公開挑戰賽2020夏季�
 cat requirements.txt | xargs -n 1 pip install
 ```
 
+### tensorboard
+```bash
+pip install tensorboard==1.14.0
+pip uninstall tensorboard-plugin-wit
+```
+
 ### CKIP Tagger
 ```
 pip install ckiptagger
