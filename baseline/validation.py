@@ -65,7 +65,8 @@ else:
 with open("./data/test.pickle", "rb") as fb:
     test_dataset = pickle.load(fb)
 
-# test_dataset = pd.read_csv("./data/test.csv")
+t_df = pd.read_csv("./data/test.csv")
+raw_labels = t_df["raw_labels"].tolist()
 
 test_data = dataset.AMLDataset(config=config,
                                dataset=test_dataset,
@@ -102,11 +103,6 @@ def validate(model, device, data_loader, tokenizer, load_path, threshold=0.5):
         pred_batch = model(documents)
 
         for pred in pred_batch:
-            # print(pred.size())
-            # print(f"Max: {pred.max()}, min: {pred.min()}")
-            # for idx, word in enumerate(pred):
-            #     if word >= threshold:
-            #         tmp.append([idx, word])
             answers.append([
                 (idx, word)
                 for idx, word in enumerate(pred)
@@ -123,14 +119,46 @@ if __name__ == "__main__":
 
     for index, row in enumerate(answers):
         t_row = test_data[index][0]
-        t_label = [
-            char.item()
-            for i, char in enumerate(test_data[index][0])
-            if test_data[index][1][i] == 1
-        ]
+
+        tmp_i = 0
+        t_label = []
         tmp = []
+        for i, char in enumerate(test_data[index][0]):
+
+            if test_data[index][1][i] == 1 and tmp_i == i-1:
+                # print("Up")
+                tmp.append(char.item())
+                tmp_i = i
+
+            elif test_data[index][1][i] == 1 and tmp_i == 0:
+                # print("Mid")
+                tmp.append(char.item())
+                tmp_i = i
+
+            elif test_data[index][1][i] == 1 and tmp_i != i-1:
+                # print("Down")
+                t_label.append(tmp)
+                tmp = []
+                tmp.append(char.item())
+                tmp_i = i
+
+        if tmp != []:
+            t_label.append(tmp)
+
+        pred = []
+        tmp = []
+        tmp_idx = None
         for idx, prob in row:
-            tmp.append(t_row[idx])
+            if tmp_idx != idx-1 and tmp_idx is not None:
+                pred.append(tmp)
+                tmp = []
+
+            tmp.append(t_row[idx].item())
+            tmp_idx = idx
+
+        pred.append(tmp)
+
         print(f"{'-'*50}")
-        print(f"{index}|Label:  \t{t.decode([t_label])}")
-        print(f"{index}|Decoded:\t{t.decode([tmp])}")
+        print(f"{index}|Raw:    \t{raw_labels[index]}")
+        print(f"{index}|Label:  \t{list(set([''.join(n) for n in t.decode(t_label) if n != []]))}")
+        print(f"{index}|Decoded:\t{list(set([''.join(n) for n in t.decode(pred) if n != []]))}")
