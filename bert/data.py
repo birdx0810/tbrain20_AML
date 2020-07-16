@@ -35,7 +35,7 @@ def load_data(data_path, news_path, save_path):
     data_df = data_df[data_df['content'] != '']
 
     # save new csv file have whole news content
-    data_df.to_csv(save_path)
+    data_df.to_csv(save_path, index=False)
 
     return data_df
 
@@ -44,7 +44,7 @@ def encode(tokenizer, text, names, args):
     # encode news content
     encode_obj = tokenizer(text, add_special_tokens=True, padding='max_length',
                            truncation=True, max_length=args['max_seq_len'])
-    
+
     input_ids = encode_obj['input_ids']
     attention_mask = encode_obj['attention_mask']
     token_type_ids = encode_obj['token_type_ids']
@@ -54,7 +54,7 @@ def encode(tokenizer, text, names, args):
     name_ids = [tokenizer(name, add_special_tokens=False)['input_ids']
                 for name in names.split(',')]
     label_ids = [0]*len(input_ids)
-    
+
     for name_id in name_ids:
         ngrams = [input_ids[i:i+len(name_id)] for i in range(0, len(input_ids)-2)]
         for index, ngram in enumerate(ngrams):
@@ -75,6 +75,7 @@ class Dataset(torch.utils.data.Dataset):
         return self.all_ids[index]
     
     def collate_fn(self, batch):
+        # pylint: disable=no-member
         input_ids = torch.LongTensor([data[0] for data in batch])
         attention_mask = torch.FloatTensor([data[1] for data in batch])
         token_type_ids = torch.LongTensor([data[2] for data in batch])

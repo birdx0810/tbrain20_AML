@@ -1,6 +1,9 @@
 # built-in modules
 import os
 import math
+import sys
+
+sys.path.append(f'{os.path.dirname(os.path.realpath(__file__))}/../src/')
 
 # 3rd-party modules
 import numpy as np
@@ -15,11 +18,12 @@ import transformers
 
 # self-made module
 import data
+import scorer
 
 # constant parameter setting
 experiment_no = 1
 epoch = 8
-evaluate_train = False
+evaluate_train = True
 
 # config
 if os.path.exists(f'model/bert-{experiment_no}/config.pkl'):
@@ -29,12 +33,12 @@ else:
     raise FileNotFoundError('Config not found')
 
 # random seed and device
-device = torch.device('cpu')
+device = torch.device('cpu') # pylint: disable=no-member
 np.random.seed(args['seed'])
 torch.manual_seed(args['seed'])
 
 if torch.cuda.is_available():
-    device = torch.device('cuda:0')
+    device = torch.device('cuda:0') # pylint: disable=no-member
     torch.cuda.manual_seed(args['seed'])
     torch.cuda.manual_seed_all(args['seed'])
     torch.backends.cudnn.deterministic = True
@@ -52,12 +56,10 @@ dataset = data.get_dataset(data_df, tokenizer, args)
 
 train_data, test_data = train_test_split(dataset, test_size=args['test_size'], random_state=args['seed'])
 train_dataloader = torch.utils.data.DataLoader(train_data,
-                                            #    batch_size=args['batch_size'],
                                                batch_size=64,
                                                shuffle=False,
                                                collate_fn=dataset.collate_fn)
 test_dataloader = torch.utils.data.DataLoader(test_data,
-                                            #   batch_size=args['batch_size'],
                                               batch_size=64,
                                               shuffle=False,
                                               collate_fn=dataset.collate_fn)
@@ -73,7 +75,7 @@ def decode(tokenizer, input_id, label_id):
                 all_name.append(temp_name)
                 temp_name = ''
 
-    return all_name
+    return set(all_name)
 
 # predict function
 def predict(tokenizer, model, stage, dataloader):
@@ -122,16 +124,31 @@ if evaluate_train:
     train_label, train_predict = predict(tokenizer, model, 'train', train_dataloader)
 test_label, test_predict = predict(tokenizer, model, 'test', test_dataloader)
 
-# print result
+# calculate and print score
+score = scorer.AMRScorer()
 if evaluate_train:
-    print('train result')
-    for index, (label, predict) in enumerate(zip(train_label, train_predict)):
-        print(f"{'-'*50}")
-        print(f"{index}|label:  \t{label}")
-        print(f"{index}|predict:\t{predict}")
+    train_score = score.calculate_score(train_predict, train_label)
+test_score = score.calculate_score(test_predict, test_label)
 
-print('test result')
+print(f'Experiment {experiment_no} epoch {epoch}:')
+print(f'Training set:')
+print(f'Total score: {train_score:.4f} \t Average score" {train_score/len(train_label):.4f}')
+print(f'Testing set:')
+print(f'Total score: {test_score:.4f} \t Average score" {test_score/len(test_label):.4f}')
+
+# save result
+if evaluate_train:
+    train_df = pd.DataFrame({'No': [], 'label': [], 'predict': []})
+    train_df = train_df.astype({'No': int})
+    for index, (label, predict) in enumerate(zip(train_label, train_predict)):
+        train_df.loc[index] = [index, list(label), list(predict)]
+
+test_df = pd.DataFrame({'No': [], 'label': [], 'predict': []})
+test_df = test_df.astype({'No': int})
 for index, (label, predict) in enumerate(zip(test_label, test_predict)):
-    print(f"{'-'*50}")
-    print(f"{index}|label:  \t{set(label)}")
-    print(f"{index}|predict:\t{set(predict)}")
+    test_df.loc[index] = [index, list(label), list(predict)]
+
+train_df.to_csv(f'{args["output_path"]}/train_predict.csv', index=False)
+test_df.to_csv(f'{args["output_path"]}/test_predict.csv', index=False)
+
+torch.cuda.empty_cache()

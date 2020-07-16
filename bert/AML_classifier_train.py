@@ -62,12 +62,12 @@ else:
     args['max_grad_norm'] = 1.0
 
 # random seed and device
-device = torch.device('cpu')
+device = torch.device('cpu') # pylint: disable=no-member
 np.random.seed(args['seed'])
 torch.manual_seed(args['seed'])
 
 if torch.cuda.is_available():
-    device = torch.device('cuda:0')
+    device = torch.device('cuda:0') # pylint: disable=no-member
     torch.cuda.manual_seed(args['seed'])
     torch.cuda.manual_seed_all(args['seed'])
     torch.backends.cudnn.deterministic = True
