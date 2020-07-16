@@ -29,36 +29,37 @@ def create_dataset(csv_path=None, news_path=None, max_seq_len=512, seed=None, to
 
     corpus = []
 
-    for p in news:
+    for i, p in enumerate(news):
         with open(p, "r") as f:
             text = f.readlines()
             text = [line.strip('\n') for line in text]
             corpus.append(' '.join(text))
 
     cleaned = tokenizer.clean(corpus)
-    tokens = tokenizer.tokenize(corpus)
+    tokens = tokenizer.tokenize(cleaned)
     labels = tokenizer.labeler(name_list, tokens)
     encoded = tokenizer.encode(tokens)
 
-    dataset = list(zip(encoded, labels))
+    dataset = list(zip(encoded, labels, name_list))
 
     # Drop data without document
     dropped = []
     for idx, data in enumerate(dataset):
         if data[0] != []:
             if len(data[0]) > max_seq_len:
-                dropped.append([data[0][:max_seq_len], data[1][:max_seq_len]])
+                dropped.append([data[0][:max_seq_len], data[1][:max_seq_len], data[2]])
             else:
                 dropped.append(data)
 
     print(f"# of data: {len(dropped)}")
 
-    df = pd.DataFrame(dropped, columns=["char_enc", "label_enc"])
+    train_data, test_data = train_test_split(dropped, test_size=0.1, random_state=seed)
 
-    train_data, test_data = train_test_split(df, test_size=0.1, random_state=seed)
+    with open("./data/train.pickle", "wb") as fb:
+        pickle.dump(train_data, fb)
 
-    train_data.to_csv("./data/train.csv")
-    test_data.to_csv("./data/test.csv")
+    with open("./data/test.pickle", "wb") as fb:
+        pickle.dump(test_data, fb)
 
     return train_data, test_data
 
@@ -72,12 +73,5 @@ if __name__ == "__main__":
     # with open("./data/test.pickle", "wb") as fb:
     #     pickle.dump(test_data, fb)
 
-
     with open("./data/tokenizer", "wb") as fb:
         pickle.dump(t, fb)
-
-    # train_df = pd.DataFrame(train_data, columns=['document', 'label'])
-    # train_df.to_csv("./data/train.csv")
-
-    # test_df = pd.DataFrame(test_data, columns=['document', 'label'])
-    # test_df.to_csv("./data/test.csv")

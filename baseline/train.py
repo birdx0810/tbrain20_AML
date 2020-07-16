@@ -71,7 +71,6 @@ else:
 
 with open("./data/tokenizer", "rb") as fb:
     t = pickle.load(fb)
-# t = tokenizer.Tokenizer()
 
 ##############################################
 # Load Training data
@@ -87,20 +86,11 @@ train_data = dataset.AMLDataset(config=config,
                                 dataset=train_dataset,
                                 tokenizer=t)
 
-test_data = dataset.AMLDataset(config=config,
-                               dataset=test_dataset,
-                               tokenizer=t)
-
 train_loader = torch.utils.data.DataLoader(train_data,
                                            batch_size=config["batch_size"],
                                            collate_fn=train_data.collate_fn,
                                            shuffle=True,
                                            num_workers=1)
-
-test_loader = torch.utils.data.DataLoader(test_data,
-                                          batch_size=config["batch_size"],
-                                          collate_fn=test_data.collate_fn,
-                                          num_workers=1)
 
 ##############################################
 # Construct model
@@ -190,37 +180,3 @@ def train_model(model, device, data_loader, criterion, optimizer, num_epochs, sa
     print(f"best loss: {best_loss:.10f}")
 
 train_model(model, device, train_loader, criterion, optimizer, config["epochs"], save_path)
-
-##############################################
-# Validation
-##############################################
-
-def validate(model, device, data_loader, tokenizer, load_path, threshold=0.5):
-
-    model.to(device)
-    model.eval()
-
-    answers = []
-
-    for index, (documents, label) in enumerate(tqdm(data_loader)):
-        documents = documents.to(device)
-        label = label.to(device)
-
-        # Get the indexes of the answers higher
-        pred_batch = model(documents)
-
-        for pred in pred_batch:
-            # print(pred.size())
-            # print(f"Max: {pred.max()}, min: {pred.min()}")
-            # for idx, word in enumerate(pred):
-            #     if word >= threshold:
-            #         tmp.append([idx, word])
-            answers.append([
-                (idx, word)
-                for idx, word in enumerate(pred)
-                if word >= threshold
-            ])
-
-
-    # DOC x (IDX (N), PROB (1))
-    return answers

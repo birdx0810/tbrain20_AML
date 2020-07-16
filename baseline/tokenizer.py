@@ -87,7 +87,9 @@ class Tokenizer(object):
         Returns:
             cleaned (list): A list of documents with stopwords removed
         """
-        with open("./utils/stopwords.txt", "r") as f:
+        print(f"Max Document Length (before): {max([len(char) for char in sentences])}")
+
+        with open("./utils/stopwords_TC.txt", "r") as f:
             stopwords = f.readlines()
             stopwords = set([w for w in stopwords])
 
@@ -97,6 +99,8 @@ class Tokenizer(object):
             for stopword in stopwords:
                 sentence = re.sub(stopword, "", sentence)
             cleaned.append(sentence)
+
+        print(f"Max Document Length (after): {max([len(char) for char in cleaned])}")
 
         return cleaned
 
@@ -122,8 +126,6 @@ class Tokenizer(object):
                 for character in sentence
             ])
             tokenized.append(sentence.split())
-
-        print(f"Max Document Length: {max([len(tokens) for tokens in tokenized])}")
 
         self.build_vocabulary(tokenized)
 

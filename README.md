@@ -43,6 +43,7 @@ sudo pip install .
 
 ## TODO:
 - Data Augmentation
+    - [x] 將沒有名字的句子去掉
     - [ ] 換名字
     - [ ] 找名單
     - [ ] 拿 Label 來爬文
@@ -50,8 +51,17 @@ sudo pip install .
     - [ ] Find keywords with TF-IDF
     - [ ] Check news domain
 - Tokenizer
+    - [x] ZH Character + EN Word
 - Modeling
-- Scorer
+    - [x] Baseline: BiLSTM + Linear
+
+- [x] Scorer
+
+## Results
+
+| Model | Score | Loss |
+| - | - | - |
+| Baseline 1 | 462.16 | 0.0000141889 |
 
 ## Dataset
 

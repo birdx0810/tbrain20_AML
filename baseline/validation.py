@@ -3,6 +3,8 @@
 ##############################################
 # Import requirements
 ##############################################
+import ast
+import sys
 import os
 import pickle
 
@@ -67,6 +69,7 @@ with open("./data/test.pickle", "rb") as fb:
 
 t_df = pd.read_csv("./data/test.csv")
 raw_labels = t_df["raw_labels"].tolist()
+raw_labels = [ast.literal_eval(name) for name in raw_labels]
 
 test_data = dataset.AMLDataset(config=config,
                                dataset=test_dataset,
@@ -117,6 +120,8 @@ if __name__ == "__main__":
 
     answers = validate(model, device, test_loader, t, load_path)
 
+    y, l, p = [], [], []
+
     for index, row in enumerate(answers):
         t_row = test_data[index][0]
 
@@ -162,3 +167,19 @@ if __name__ == "__main__":
         print(f"{index}|Raw:    \t{raw_labels[index]}")
         print(f"{index}|Label:  \t{list(set([''.join(n) for n in t.decode(t_label) if n != []]))}")
         print(f"{index}|Decoded:\t{list(set([''.join(n) for n in t.decode(pred) if n != []]))}")
+
+        y.append(set(raw_labels[index]))
+        l.append(set([''.join(n) for n in t.decode(t_label) if n != []]))
+        p.append(set([''.join(n) for n in t.decode(pred) if n != []]))
+
+    # Calculate F1 Score
+
+    sys.path.append(os.path.dirname(os.path.realpath(__file__)) + "/../src/")
+    import scorer
+
+    scorer = scorer.AMRScorer()
+
+    score = scorer.calculate_score(p, y)
+    print(f"F1 Score: {score}")
+
+
