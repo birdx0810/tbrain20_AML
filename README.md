@@ -59,9 +59,12 @@ sudo pip install .
 
 ## Results
 
-| Model | Score | Loss |
+| Model | Averaged F-1 | Total Score | Loss |
 | - | - | - |
-| Baseline 1 | 462.16 | 0.0000141889 |
+| CKIP NER (all)      | 0.20222 | 1015.78 | - |
+| Baseline            | 0.93935 | 462.16  | 0.0000141889 |
+| Baseline + Filtered | 0.94482 | 464.85  | 0.0000153003 |
+| Baseline + Filtered + NER | 0.96005 | 472.34 | 0.0000153003 |
 
 ## Dataset
 
