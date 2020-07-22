@@ -20,6 +20,7 @@ from data_utils import filter_short_lines, is_mojibake
 
 warnings.filterwarnings("ignore")
 
+
 def crawl_url():
     """
     crawl a specified url, and print its content.
@@ -132,7 +133,7 @@ def crawl_traverse():
     crawl urls listed in the specified csv file.
     if crawled content is empty, copy the corresponding file from the specified folder.
     """
-    
+
     SENTENCE_LEN = 25
     data_path = "../data/tbrain_train_final_0610.csv"
     df = pd.read_csv(data_path)
@@ -183,7 +184,61 @@ def crawl_traverse():
 
     return
 
+
+def crawl_verdict_link():
+    gc = ['TPA', 'TPS', 'TPP', 'TPH', 'TPB', 'TCB', 'KSB', 'IPC', 'TCH', 'TNH', 'KSH', 'HLH', 'TPD', 'SLD', 'PCD', 'ILD', 'KLD', 'TYD', 'SCD', 'MLD', 'TCD', 'CHD', 'NTD', 'ULD', 'CYD', 'TND', 'KSD', 'CTD', 'HLD', 'TTD', 'PTD', 'PHD', 'KMH', 'KMD', 'LCD']
+    law_url = "https://law.judicial.gov.tw/FJUD/"
+    base_url = "https://law.judicial.gov.tw/FJUD/qryresultlst.aspx?ty=JUDBOOK&q=760965e9e970be6cb955256cabe3f0c1&gy=jcourt"
+
+    with open('./law_urls.txt', 'w') as f:
+        for court in tqdm(gc):
+            for page in range(1, 26):
+                url = f'{base_url}&gc={court}&page={page}'
+                try:
+                    response = requests.get(url)
+                    response.encoding = "UTF-8"
+
+                    soup = BeautifulSoup(response.text)
+                    titles = soup.select('a#hlTitle')
+
+                    for title in titles:
+                        f.write(f'{law_url}{title["href"]}\n')
+
+                    time.sleep(random.random() * 1.5 + 0.5)
+
+                except:
+                    time.sleep(random.random() * 1.5 + 0.5)
+        
+    return
+
+
+def crawl_verdict():
+    with open('./law_urls.txt', 'r') as f:
+        for ind, line in enumerate(tqdm(f.readlines())):
+            try:
+                url = line.strip('\n')
+                response = requests.get(url)
+                response.encoding = "UTF-8"
+
+                soup = BeautifulSoup(response.text)
+                result_set = soup.select('div#jud')
+                text = ''
+                for abbr in result_set:
+                    text += abbr.text
+
+                with open(f'../data/verdicts/{ind}.txt', 'w') as f_write:
+                    f_write.write(text+'\n')
+
+                time.sleep(random.random() * 1.5 + 0.5)
+            except:
+                time.sleep(random.random() * 1.5 + 0.5)
+                
+    return
+
+
 if __name__ == "__main__":
     # crawl_url()
     # crawl_traverse()
-    crawl_mojibake()
+    # crawl_mojibake()
+    # crawl_verdict_link()
+    crawl_verdict()

@@ -49,10 +49,10 @@ def main():
     has_name_list = df['has_name'].tolist()
     print(len(text_list))
 
-    # # limit the number of articles
-    # num = 20
-    # text_list = text_list[:num]
-    # has_name_list = has_name_list[:num]
+    # limit the number of articles
+    num = 20
+    text_list = text_list[:num]
+    has_name_list = has_name_list[:num]
 
     # proprocess text
     text_list = [preprocess(article) for article in text_list]
@@ -69,6 +69,7 @@ def main():
     fasttext.util.download_model('zh', if_exists='ignore')
     ft = fasttext.load_model('cc.zh.300.bin')
 
+    w_list = []
     wv_list = []
     label_list = []
 
@@ -79,7 +80,14 @@ def main():
         sorted_keywords = np.argsort(article_vector.toarray()).flatten()[::-1]
         keywords = names[sorted_keywords][:k]
         # get word vectors of keywords
-        for keyword in keywords:
+        for k_index, keyword in enumerate(keywords):
+            if article_index % 10 == 0:
+                if k_index == 0:
+                    w_list.append(keyword)
+                else:
+                    w_list.append('')
+            else:
+                w_list.append('')
             wv_list.append(ft.get_word_vector(keyword))
             label_list.append(has_name_list[article_index])
         # print('====================')
@@ -93,19 +101,24 @@ def main():
     # t-SNE
     wv_reduced = TSNE(n_components=2).fit_transform(wv_list)
     df_plot = pd.DataFrame()
-    df_plot['2d-one'] = [ele[0] for ele in wv_reduced]
-    df_plot['2d-two'] = [ele[1] for ele in wv_reduced]
+    df_plot['x'] = [ele[0] for ele in wv_reduced]
+    df_plot['y'] = [ele[1] for ele in wv_reduced]
     df_plot['label'] = label_list
+    df_plot['word'] = w_list
 
     # plot
     plt.figure(figsize=(20,10))
-    sns.scatterplot(
-        x="2d-one", y="2d-two",
+    sns_plt = sns.scatterplot(
+        x="x", y="y",
+        fit_reg=False,
         hue='label',
         data=df_plot,
         legend="full",
         alpha=0.3
     )
+    for line in range(0,df.shape[0]):
+        sns_plt.text(df.x[line]+0.2, df.y[line], df.group[line], horizontalalignment='left', size='medium', color='black') #, weight='semibold')
+    
     plt.show()
     plt.savefig('../data/stat/temp.png')
 
