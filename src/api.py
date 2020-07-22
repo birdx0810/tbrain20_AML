@@ -14,11 +14,18 @@ import hashlib
 import numpy as np
 import pandas as pd
 
+import os
+
 app = Flask(__name__)
 
 ####### PUT YOUR INFORMATION HERE #######
 CAPTAIN_EMAIL = 'p76084423@gs.ncku.edu.tw'
 SALT = 'ikm'
+
+INFERENCE_COUNT = 0
+SAVE_PATH = f"./logs"
+if not os.path.exists(SAVE_PATH):
+    os.mkdir(SAVE_PATH)
 #########################################
 
 def generate_server_uuid(input_string):
@@ -93,8 +100,8 @@ def inference():
     server_uuid = generate_server_uuid(CAPTAIN_EMAIL)
 
     # get request time
-    # esun_timestamp = data['esun_timestamp']
-
+    esun_timestamp = data['esun_timestamp']
+    start_timestamp = int(time.time())
     # get answer
     try:
         answer = predict(data['news'])
@@ -102,12 +109,21 @@ def inference():
         raise ValueError('Model error.')        
     
     # get response time
-    server_timestamp = int(time.time())
+    end_timestamp = int(time.time())
+
+    global INFERENCE_COUNT
+
+    with open(f'{SAVE_PATH}/{INFERENCE_COUNT}.log', 'w') as f:
+        f.write(f'ESUN TIME: {time.ctime(esun_timestamp)}\n')
+        f.write(f'STR TIME: {time.ctime(start_timestamp)}\n')
+        f.write(f'END TIME: {time.ctime(end_timestamp)}\n')
+        f.write(data['news'])
+        INFERENCE_COUNT += 1
 
     return jsonify({'esun_uuid': data['esun_uuid'],
                     'server_uuid': server_uuid,
                     'answer': answer,
-                    'server_timestamp': server_timestamp})
+                    'server_timestamp': end_timestamp})
 
 if __name__ == "__main__":    
     app.run(host='0.0.0.0', port=8080, debug=True)
