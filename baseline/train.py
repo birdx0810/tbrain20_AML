@@ -25,7 +25,7 @@ import tokenizer
 # Hyperparameters setup
 ##############################################
 
-experiment_no = 1
+experiment_no = 3
 
 config = {}
 
@@ -76,10 +76,10 @@ with open("./data/tokenizer", "rb") as fb:
 # Load Training data
 ##############################################
 
-with open("./data/train.pickle", "rb") as fb:
+with open("./data/train_f.pickle", "rb") as fb:
     train_dataset = pickle.load(fb)
 
-with open("./data/test.pickle", "rb") as fb:
+with open("./data/test_f.pickle", "rb") as fb:
     test_dataset = pickle.load(fb)
 
 train_data = dataset.AMLDataset(config=config,

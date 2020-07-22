@@ -14,13 +14,12 @@ class AMLDataset(torch.utils.data.Dataset):
 
         self.x = [torch.LongTensor(data[0]) for data in dataset]
         self.y = [torch.FloatTensor(data[1]) for data in dataset]
+        self.raw = [data[2] for data in dataset]
 
     def __len__(self):
         return len(self.x)
 
     def __getitem__(self, index):
-        # print(self.x[index].size())
-        # print(self.y[index].size())
 
         x = self.x[index]
         y = self.y[index]

@@ -3,22 +3,48 @@
 '''
 API code provided by E-SUN (garbage) and honeytoast
 '''
-from flask import Flask
-from flask import request
-from flask import jsonify
-import flask
-
+# built-in module
+import os
 import time
 import json
+
+# 3rd-party module
+import flask
+from flask import Flask, request, jsonify
 import hashlib
 import numpy as np
 import pandas as pd
+import transformers
+
+# self-made module
+# pylint: disable=no-member
+from bert import test as bert
 
 app = Flask(__name__)
 
 ####### PUT YOUR INFORMATION HERE #######
 CAPTAIN_EMAIL = 'p76084423@gs.ncku.edu.tw'
 SALT = 'ikm'
+
+INFERENCE_COUNT = 0
+SAVE_PATH = f"./logs"
+if not os.path.exists(SAVE_PATH):
+    os.mkdir(SAVE_PATH)
+
+MODEL_NAME = 'BERT'
+
+############## BERT  MODEL ##############
+# parameter setting
+bert_experiment_no = 1
+bert_epoch = 8
+
+# load config and model
+bert_config = transformers.BertConfig.from_pretrained("bert-base-chinese", num_labels=2)
+bert_model = transformers.BertForTokenClassification.from_pretrained(
+    f'../bert/model/bert-{bert_experiment_no}/epoch-{bert_epoch}/pytorch_model.bin',
+    config=bert_config)
+print('load BERT model finished')
+
 #########################################
 
 def generate_server_uuid(input_string):
@@ -39,9 +65,10 @@ def predict(article):
     """
 
     ####### PUT YOUR MODEL INFERENCING CODE HERE #######
-    prediction = ['aha','danny','王小明']
-    
-    
+    if MODEL_NAME == "BERT":
+        prediction = bert.test(bert_model, article, 
+                               bert_experiment_no, bert_epoch)
+
     ####################################################
     prediction = _check_datatype_to_list(prediction)
     return prediction
@@ -93,7 +120,8 @@ def inference():
     server_uuid = generate_server_uuid(CAPTAIN_EMAIL)
 
     # get request time
-    # esun_timestamp = data['esun_timestamp']
+    esun_timestamp = data['esun_timestamp']
+    start_timestamp = int(time.time())
 
     # get answer
     try:
@@ -102,12 +130,21 @@ def inference():
         raise ValueError('Model error.')        
     
     # get response time
-    server_timestamp = int(time.time())
+    end_timestamp = int(time.time())
+
+    global INFERENCE_COUNT
+
+    with open(f'{SAVE_PATH}/{INFERENCE_COUNT}.log', 'w') as f:
+        f.write(f'ESUN TIME: {time.ctime(esun_timestamp)}\n')
+        f.write(f'STR TIME: {time.ctime(start_timestamp)}\n')
+        f.write(f'END TIME: {time.ctime(end_timestamp)}\n')
+        f.write(data['news'])
+        INFERENCE_COUNT += 1
 
     return jsonify({'esun_uuid': data['esun_uuid'],
                     'server_uuid': server_uuid,
                     'answer': answer,
-                    'server_timestamp': server_timestamp})
+                    'server_timestamp': end_timestamp})
 
 if __name__ == "__main__":    
     app.run(host='0.0.0.0', port=8080, debug=True)
