@@ -7,6 +7,7 @@ API code provided by E-SUN (garbage) and honeytoast
 import os
 import time
 import json
+import re
 
 # 3rd-party module
 import flask
@@ -123,9 +124,13 @@ def inference():
     esun_timestamp = data['esun_timestamp']
     start_timestamp = int(time.time())
 
+    # remove unnecessary character
+    news = data['news']
+    news = re.sub(r'\s+', '', news)
+
     # get answer
     try:
-        answer = predict(data['news'])
+        answer = predict(news)
     except:
         raise ValueError('Model error.')        
     
@@ -134,11 +139,13 @@ def inference():
 
     global INFERENCE_COUNT
 
+    # write log
     with open(f'{SAVE_PATH}/{INFERENCE_COUNT}.log', 'w') as f:
         f.write(f'ESUN TIME: {time.ctime(esun_timestamp)}\n')
         f.write(f'STR TIME: {time.ctime(start_timestamp)}\n')
         f.write(f'END TIME: {time.ctime(end_timestamp)}\n')
-        f.write(data['news'])
+        f.write(f'{news}\n')
+        f.write(f'{",".join(answer)}')
         INFERENCE_COUNT += 1
 
     return jsonify({'esun_uuid': data['esun_uuid'],
