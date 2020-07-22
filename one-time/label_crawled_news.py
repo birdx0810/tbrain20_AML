@@ -79,13 +79,14 @@ def filter_same_news(
 def replace_names(
         names_list_path='./fake_names_1000.txt',
         news_csv_path='./other_news-v3.csv',
-        save_csv_path='./other_news-v4.csv'):
+        save_csv_path='./other_news-v4.csv',
+        num_len_2_limit=35,
+        generate_n_data_from_content=5):
 
     with open(names_list_path, 'r') as f:
         fake_names = f.readline().strip('\n').split(', ')
 
     # make up names with length 2
-    num_len_2_limit = 35
     num_len_2_count = 0
     for index, name in enumerate(fake_names):
         if len(name) == 2:
@@ -105,7 +106,6 @@ def replace_names(
 
     contents = []
     labels = []
-    generate_n_data_from_content = 5
     cur_fake_name_index = 0
     for index, row in news_df.iterrows():
         cur_content = row['content']
@@ -131,8 +131,8 @@ def replace_names(
         'content': contents,
         'name': labels,
     })
-    print(generated_df.shape)
     generated_df.to_csv(save_csv_path, index=False)
+    print(generated_df.shape)
     
     return
 
