@@ -4,7 +4,7 @@ import ast
 import random
 
 """
-script preprocessing crawled news.
+script for preprocessing crawled news.
 """
 
 
@@ -76,13 +76,16 @@ def filter_same_news(
     return
 
 
-def replace_names(
+def replace_names_from_csv(
         names_list_path='./fake_names_1000.txt',
         news_csv_path='./other_news-v3.csv',
         save_csv_path='./other_news-v4.csv',
+        name_format='comma-only',
         num_len_2_limit=35,
         generate_n_data_from_content=5):
-
+    """
+    Replace names in contents with fake names for data augmentation.
+    """
     with open(names_list_path, 'r') as f:
         fake_names = f.readline().strip('\n').split(', ')
 
@@ -101,7 +104,10 @@ def replace_names(
     random.shuffle(fake_names)
 
     # data augmentation
-    news_df = pd.read_csv(news_csv_path)
+    if name_format == 'comma-only':
+        news_df = pd.read_csv(news_csv_path, keep_default_na=False)
+    else:
+        news_df = pd.read_csv(news_csv_path)
     print(news_df.shape)
 
     contents = []
@@ -109,7 +115,16 @@ def replace_names(
     cur_fake_name_index = 0
     for index, row in news_df.iterrows():
         cur_content = row['content']
-        cur_labels_lst = ast.literal_eval(row["name"])
+
+        if name_format == 'comma-only':
+            # for reading names in format `name1, name2`
+            cur_labels_lst = row["name"].split(',')
+            if len(cur_labels_lst) == 1 and cur_labels_lst[0] == '':
+                continue
+            
+        else:
+            # for reading names in format `["name1", "name2"]`
+            cur_labels_lst = ast.literal_eval(row["name"])
         
         for n in range(generate_n_data_from_content):
             cur_fake_names = []
@@ -140,4 +155,7 @@ def replace_names(
 if __name__ == '__main__':
     # label_names()
     # filter_same_news()
-    replace_names()
+    replace_names_from_csv(
+        names_list_path='./fake_names_1000.txt',
+        news_csv_path='./train.csv',
+        save_csv_path='./other_news-v4_aug-from-tbrain.csv')
