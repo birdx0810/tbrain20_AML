@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 import ast
 import random
@@ -148,14 +149,65 @@ def replace_names_from_csv(
     })
     generated_df.to_csv(save_csv_path, index=False)
     print(generated_df.shape)
-    
+    return
+
+
+def merge_2_csv(
+        csv1_path='./train.csv', 
+        csv2_path='./other_news-v4_aug-from-tbrain.csv', 
+        save_csv_path='./merge-tbrain-and-aug-from-tbrain.csv'):
+    """
+    Merge tbrain csv & augmented data from tbrain csv.
+    """
+    df1 = pd.read_csv(csv1_path, keep_default_na=False)
+    df2 = pd.read_csv(csv2_path, keep_default_na=False)
+
+    is_from_tbrain = [1]*df1.shape[0] + [0]*df2.shape[0]
+
+    names1 = df1['name'].to_list()
+
+    names2 = []
+    for index, row in df2.iterrows():
+        cur_names = ast.literal_eval(row["name"])
+        cur_names_str = ','.join(cur_names)
+        names2.append(cur_names_str)
+
+    print(df1.shape)
+    print(df2.shape)
+
+    merge_df = df1.append(df2, ignore_index=True)
+    merge_df['news_ID'] = range(1, len(is_from_tbrain)+1)
+    merge_df['is_from_tbrain'] = is_from_tbrain
+    merge_df['name'] = names1 + names2
+    merge_df.drop(['hyperlink'], axis=1, inplace=True)
+    print(merge_df.shape)
+
+    merge_df.to_csv(save_csv_path, index=False)
+    return
+
+
+def merge_no_aml_and_aug(
+        merged_csv_path='./merge-tbrain-and-aug-from-tbrain.csv', 
+        save_csv_path='./merge-tbrain-and-aug-from-tbrain-no-tbrain-aml.csv'):
+    """
+    Merge data which has no labeled-names (non-AML-names) in tbrain csv with data augmented from tbrain csv.
+    """
+    df = pd.read_csv(merged_csv_path, keep_default_na=False)
+    df['name'].replace('', np.nan, inplace=True)
+    df = df.dropna()
+    df.drop(['is_from_tbrain'], axis=1, inplace=True)
+    df['news_ID'] = range(1, df.shape[0]+1)
+    print(df.shape)
+    df.to_csv(save_csv_path, index=False)
     return
 
 
 if __name__ == '__main__':
     # label_names()
     # filter_same_news()
-    replace_names_from_csv(
-        names_list_path='./fake_names_1000.txt',
-        news_csv_path='./train.csv',
-        save_csv_path='./other_news-v4_aug-from-tbrain.csv')
+    # replace_names_from_csv(
+    #     names_list_path='./fake_names_1000.txt',
+    #     news_csv_path='./train.csv',
+    #     save_csv_path='./other_news-v4_aug-from-tbrain.csv')
+    # merge_2_csv()
+    merge_no_aml_and_aug()
