@@ -14,28 +14,35 @@ from sklearn.metrics import accuracy_score
 import transformers
 
 # load news and labels
-def load_data(data_path, news_path, save_path):
-    data_df = pd.read_csv(data_path)
-    for index, row in data_df.iterrows():
-        news_id = row.loc['news_ID']
+def load_data(data_path=None, news_path=None, save_path=None):
+    data_df = pd.read_csv(data_path, keep_default_na=False)
 
-        # get news content
-        with open(f'{news_path}/{news_id}.txt', 'r') as f:
-            content = f.read().strip()
-            content = content.replace('\r', '')
-            content = content.replace('\n', '')
-            content = content.replace('\t', '')
-            data_df.at[index, 'content'] = content
+    # if given news_path, read news from txt file
+    if news_path is not None:
+        for index, row in data_df.iterrows():
+            news_id = row.loc['news_ID']
+
+            # get news content
+            with open(f'{news_path}/{news_id}.txt', 'r') as f:
+                content = f.read().strip()
+                content = content.replace('\r', '')
+                content = content.replace('\n', '')
+                content = content.replace('\t', '')
+                data_df.at[index, 'content'] = content
 
     # convert labels format
-    data_df['name'] = data_df['name'].apply(
-        lambda name: ','.join(json.loads(name.replace("'", '"'))))
+    try:
+        data_df['name'] = data_df['name'].apply(
+            lambda name: ','.join(json.loads(name.replace("'", '"'))))
+    except:
+        pass
 
     # remove the data which content is empty
     data_df = data_df[data_df['content'] != '']
 
-    # save new csv file have whole news content
-    data_df.to_csv(save_path, index=False)
+    # save csv file if given save_path
+    if save_path is not None:
+        data_df.to_csv(save_path, index=False)
 
     return data_df
 

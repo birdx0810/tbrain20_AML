@@ -76,7 +76,7 @@ def test(model, news, experiment_no, epoch):
 
     # init tokenizer
     tokenizer = transformers.BertTokenizer.from_pretrained(args['model_name'])
-    print(f'load tokenizer \t time: {int(time.time())}')
+    print(f'\nload tokenizer \t time: {int(time.time())}')
 
     # load data
     dataset = data.get_dataset(news, tokenizer, args)

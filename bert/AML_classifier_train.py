@@ -30,7 +30,6 @@ else:
     args['data_path'] = os.path.relpath('../data')
     args['train_file_path'] = f'{args["data_path"]}/tbrain_train_final_0610.csv'
     args['train_news_path'] = f'{args["data_path"]}/news_0703/cleaned_crawled_news'
-    args['test_file_path'] = ''
     args['output_path'] = f'model/bert-{args["experiment_no"]}'
 
     if not os.path.exists(args['output_path']):

@@ -23,6 +23,9 @@ import scorer
 # constant parameter setting
 experiment_no = 1
 epoch = 8
+
+# data_path set None if use tbrain data to evaluate
+data_path = None # '../data/news_aug.csv'
 evaluate_train = True
 
 # config
@@ -49,20 +52,28 @@ config = transformers.BertConfig.from_pretrained(args['model_name'], num_labels=
 tokenizer = transformers.BertTokenizer.from_pretrained(args['model_name'])
 
 # load data
-data_df = data.load_data(data_path=args['train_file_path'],
-                         news_path=args['train_news_path'],
-                         save_path=f'{args["data_path"]}/train.csv')
+if data_path is None:
+    data_df = data.load_data(data_path=args['train_file_path'],
+                             news_path=args['train_news_path'])
+else:
+    data_df = data.load_data(data_path=data_path)
 dataset = data.get_dataset(data_df, tokenizer, args)
 
-train_data, test_data = train_test_split(dataset, test_size=args['test_size'], random_state=args['seed'])
-train_dataloader = torch.utils.data.DataLoader(train_data,
-                                               batch_size=64,
-                                               shuffle=False,
-                                               collate_fn=dataset.collate_fn)
-test_dataloader = torch.utils.data.DataLoader(test_data,
-                                              batch_size=64,
-                                              shuffle=False,
-                                              collate_fn=dataset.collate_fn)
+if data_path is None:
+    train_data, test_data = train_test_split(dataset, test_size=args['test_size'], random_state=args['seed'])
+    train_dataloader = torch.utils.data.DataLoader(train_data,
+                                                   batch_size=64,
+                                                   shuffle=False,
+                                                   collate_fn=dataset.collate_fn)
+    test_dataloader = torch.utils.data.DataLoader(test_data,
+                                                  batch_size=64,
+                                                  shuffle=False,
+                                                  collate_fn=dataset.collate_fn)
+else:
+    test_dataloader = torch.utils.data.DataLoader(dataset,
+                                                  batch_size=64,
+                                                  shuffle=False,
+                                                  collate_fn=dataset.collate_fn)
 
 # decode function
 def decode(tokenizer, input_id, label_id):
@@ -120,24 +131,26 @@ model = transformers.BertForTokenClassification.from_pretrained(
 model.to(device)
 
 # get predict result
-if evaluate_train:
+if data_path is None and evaluate_train:
     train_label, train_predict = predict(tokenizer, model, 'train', train_dataloader)
 test_label, test_predict = predict(tokenizer, model, 'test', test_dataloader)
 
 # calculate and print score
 score = scorer.AMRScorer()
-if evaluate_train:
+if data_path is None and evaluate_train:
     train_score = score.calculate_score(train_predict, train_label)
 test_score = score.calculate_score(test_predict, test_label)
 
 print(f'Experiment {experiment_no} epoch {epoch}:')
-print(f'Training set:')
-print(f'Total score: {train_score:.4f} \t Average score" {train_score/len(train_label):.4f}')
+
+if data_path is None and evaluate_train:
+    print(f'Training set:')
+    print(f'Total score: {train_score:.4f} \t Average score" {train_score/len(train_label):.4f}')
 print(f'Testing set:')
 print(f'Total score: {test_score:.4f} \t Average score" {test_score/len(test_label):.4f}')
 
 # save result
-if evaluate_train:
+if data_path is None and evaluate_train:
     train_df = pd.DataFrame({'No': [], 'label': [], 'predict': []})
     train_df = train_df.astype({'No': int})
     for index, (label, predict) in enumerate(zip(train_label, train_predict)):
@@ -148,7 +161,8 @@ test_df = test_df.astype({'No': int})
 for index, (label, predict) in enumerate(zip(test_label, test_predict)):
     test_df.loc[index] = [index, list(label), list(predict)]
 
-train_df.to_csv(f'{args["output_path"]}/train_predict.csv', index=False)
+if data_path is None and evaluate_train:
+    train_df.to_csv(f'{args["output_path"]}/train_predict.csv', index=False)
 test_df.to_csv(f'{args["output_path"]}/test_predict.csv', index=False)
 
 torch.cuda.empty_cache()
