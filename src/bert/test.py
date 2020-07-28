@@ -14,14 +14,15 @@ from bert import data # pylint: disable=import-error
 
 # decode function
 def decode(tokenizer, input_id, label_id):
+    special_token_ids = [i for i in range(0, 106)]
     all_name, temp_name = [], ''
     for index, label in enumerate(label_id):
-        if label == 1:
+        if label == 1 and input_id[index] not in special_token_ids:
             temp_name += tokenizer.decode(int(input_id[index]))
-        elif label == 0:
-            if temp_name != '':
+        elif label == 0 and temp_name != '':
+            if len(temp_name) >= 3:
                 all_name.append(temp_name)
-                temp_name = ''
+            temp_name = ''
 
     return list(set(all_name))
 

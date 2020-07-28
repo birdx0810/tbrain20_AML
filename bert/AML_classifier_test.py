@@ -21,11 +21,11 @@ import data
 import scorer
 
 # constant parameter setting
-experiment_no = 1
-epoch = 8
+experiment_no = 11
+epoch = 5
 
-# data_path set None if use tbrain data to evaluate
-data_path = None # '../data/news_aug.csv'
+# data_path set None if use origin training data to evaluate
+data_path = '../data/news.csv'
 evaluate_train = True
 
 # config
@@ -52,14 +52,14 @@ config = transformers.BertConfig.from_pretrained(args['model_name'], num_labels=
 tokenizer = transformers.BertTokenizer.from_pretrained(args['model_name'])
 
 # load data
-if data_path is None:
+if data_path is None or data_path == '../data/news.csv':
     data_df = data.load_data(data_path=args['train_file_path'],
                              news_path=args['train_news_path'])
 else:
     data_df = data.load_data(data_path=data_path)
 dataset = data.get_dataset(data_df, tokenizer, args)
 
-if data_path is None:
+if data_path is None or data_path == '../data/news.csv':
     train_data, test_data = train_test_split(dataset, test_size=args['test_size'], random_state=args['seed'])
     train_dataloader = torch.utils.data.DataLoader(train_data,
                                                    batch_size=64,
@@ -77,14 +77,15 @@ else:
 
 # decode function
 def decode(tokenizer, input_id, label_id):
+    special_token_ids = [i for i in range(0, 106)]
     all_name, temp_name = [], ''
     for index, label in enumerate(label_id):
-        if label == 1:
+        if label == 1 and input_id[index] not in special_token_ids:
             temp_name += tokenizer.decode(int(input_id[index]))
-        elif label == 0:
-            if temp_name != '':
+        elif label == 0 and temp_name != '':
+            if len(temp_name) >= 3:
                 all_name.append(temp_name)
-                temp_name = ''
+            temp_name = ''
 
     return set(all_name)
 
@@ -122,7 +123,25 @@ def predict(tokenizer, model, stage, dataloader):
     all_prediction = [decode(tokenizer, input_id[i], prediction[i])
                       for i in range(len(prediction))]
 
+    # filter prediction
+    # final_prediction = []
+    # for prediction in all_prediction:
+    #     temp_prediction = [name for name in prediction if len(name) >= 3]
+
+    #     two_names = [name for name in prediction if len(name) == 2]
+    #     three_names = [name for name in prediction if len(name) >= 3]
+
+    #     for two_name in two_names:
+    #         contain_name = [two_name in three_name
+    #                         for three_name in three_names]
+    #         if not any(contain_name):
+    #             temp_prediction.append(two_name)
+
+    #     final_prediction.append(set(temp_prediction))
+        
+
     return all_label, all_prediction
+    # return all_label, final_prediction
 
 # load model
 model = transformers.BertForTokenClassification.from_pretrained(
@@ -131,26 +150,26 @@ model = transformers.BertForTokenClassification.from_pretrained(
 model.to(device)
 
 # get predict result
-if data_path is None and evaluate_train:
+if (data_path is None or data_path == '../data/news.csv') and evaluate_train:
     train_label, train_predict = predict(tokenizer, model, 'train', train_dataloader)
 test_label, test_predict = predict(tokenizer, model, 'test', test_dataloader)
 
 # calculate and print score
 score = scorer.AMRScorer()
-if data_path is None and evaluate_train:
+if (data_path is None or data_path == '../data/news.csv') and evaluate_train:
     train_score = score.calculate_score(train_predict, train_label)
 test_score = score.calculate_score(test_predict, test_label)
 
 print(f'Experiment {experiment_no} epoch {epoch}:')
 
-if data_path is None and evaluate_train:
+if (data_path is None or data_path == '../data/news.csv') and evaluate_train:
     print(f'Training set:')
     print(f'Total score: {train_score:.4f} \t Average score" {train_score/len(train_label):.4f}')
 print(f'Testing set:')
 print(f'Total score: {test_score:.4f} \t Average score" {test_score/len(test_label):.4f}')
 
 # save result
-if data_path is None and evaluate_train:
+if (data_path is None or data_path == '../data/news.csv') and evaluate_train:
     train_df = pd.DataFrame({'No': [], 'label': [], 'predict': []})
     train_df = train_df.astype({'No': int})
     for index, (label, predict) in enumerate(zip(train_label, train_predict)):
@@ -161,7 +180,7 @@ test_df = test_df.astype({'No': int})
 for index, (label, predict) in enumerate(zip(test_label, test_predict)):
     test_df.loc[index] = [index, list(label), list(predict)]
 
-if data_path is None and evaluate_train:
+if (data_path is None or data_path == '../data/news.csv') and evaluate_train:
     train_df.to_csv(f'{args["output_path"]}/train_predict.csv', index=False)
 test_df.to_csv(f'{args["output_path"]}/test_predict.csv', index=False)
 
