@@ -95,7 +95,7 @@ def healthcheck():
     try:
         # get request data
         data = request.get_json(force=True)
-        print(data)
+        print(f'\n{data}\n')
 
         # generate server uuid
         server_uuid = generate_server_uuid(CAPTAIN_EMAIL)
@@ -140,13 +140,15 @@ def inference():
     global INFERENCE_COUNT
 
     # write log
-    with open(f'{SAVE_PATH}/{INFERENCE_COUNT}.log', 'w') as f:
+    with open(f'{SAVE_PATH}/{data["esun_uuid"]}.log', 'w') as f:
         f.write(f'ESUN TIME: {time.ctime(esun_timestamp)}\n')
         f.write(f'STR TIME: {time.ctime(start_timestamp)}\n')
         f.write(f'END TIME: {time.ctime(end_timestamp)}\n')
         f.write(f'{news}\n')
-        f.write(f'{",".join(answer)}')
-        INFERENCE_COUNT += 1
+        if answer != []:
+            f.write(f'{",".join(answer)}')
+        else:
+            f.write('\n')
 
     return jsonify({'esun_uuid': data['esun_uuid'],
                     'server_uuid': server_uuid,
@@ -154,4 +156,4 @@ def inference():
                     'server_timestamp': end_timestamp})
 
 if __name__ == "__main__":    
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=False)
