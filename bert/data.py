@@ -68,19 +68,24 @@ def encode(tokenizer, text, names, args):
             if name_id == ngram:
                 label_ids[index:index+len(name_id)] = [1]*len(name_id)
 
-    return input_ids, attention_mask, token_type_ids, position_ids, label_ids
+    if names == '':
+        label_name = []
+    else:
+        label_name = names.split()
+
+    return input_ids, attention_mask, token_type_ids, position_ids, label_ids, label_name, text
 
 # construct dataset
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, all_ids):
         self.all_ids = all_ids
-        
+
     def __len__(self):
         return len(self.all_ids)
-    
+
     def __getitem__(self, index):
         return self.all_ids[index]
-    
+
     def collate_fn(self, batch):
         # pylint: disable=no-member
         input_ids = torch.LongTensor([data[0] for data in batch])
@@ -88,8 +93,10 @@ class Dataset(torch.utils.data.Dataset):
         token_type_ids = torch.LongTensor([data[2] for data in batch])
         position_ids = torch.LongTensor([data[3] for data in batch])
         label_ids = torch.LongTensor([data[4] for data in batch])
-        
-        return input_ids, attention_mask, token_type_ids, position_ids, label_ids
+        label_name = [data[5] for data in batch]
+        news = [data[6] for data in batch]
+
+        return input_ids, attention_mask, token_type_ids, position_ids, label_ids, label_name, news
 
 # get dataset
 def get_dataset(data_df, tokenizer, args):
@@ -98,8 +105,56 @@ def get_dataset(data_df, tokenizer, args):
     tqdm.pandas(desc='Encode')
     data_df[['content', 'name']].progress_apply(
         lambda row: encode(tokenizer, row['content'], row['name'], args), axis=1
-    ).apply(lambda x: all_ids.append([x[0], x[1], x[2], x[3], x[4]]))
+    ).apply(lambda x: all_ids.append([x[0], x[1], x[2], x[3], x[4], x[5], x[6]]))
 
-    dataset = Dataset(all_ids)
+    dataset = Dataset(np.array(all_ids))
 
     return dataset
+
+def map_unk(sentence, tokens, ids, unk_token_id, special_tokens):
+    """
+    If id([UNK]) = 100 and ids = [9, 100, 27], then the result mapping would be [token(9), token(100), token(27)].
+    len(mapping) = len(ids)
+
+    Returns:
+        `mapping`: [str, str, str, ...]
+    """
+
+    mapping = []
+    cur_sentence_index = 0
+    for ids_index, cur_id in enumerate(ids):
+
+        if ids_index < len(mapping):
+            continue
+
+        if cur_id != unk_token_id:
+            cur_token = tokens[ids_index]
+            mapping.append(cur_token)
+            # update char index
+            if cur_token not in special_tokens:
+                cur_sentence_index += sentence[cur_sentence_index:].find(cur_token) + len(cur_token) # here: may be -1?
+        else:
+            # find next non-unk token
+            next_non_unk_index = -1
+            for temp_ids_index in range(ids_index+1, len(ids)):
+                if ids[temp_ids_index] != unk_token_id:
+                    next_non_unk_index = temp_ids_index
+                    break
+
+            next_non_unk_token = tokens[next_non_unk_index]
+            
+            # split unk string
+            # TODO: check len(split_result) == len(unk)
+            next_sentence_index = sentence[cur_sentence_index:].find(next_non_unk_token)
+            if next_sentence_index == -1:
+                string_to_split = sentence[cur_sentence_index:].strip(' ').split(' ')
+            else:
+                next_sentence_index += cur_sentence_index
+                string_to_split = sentence[cur_sentence_index:next_sentence_index].strip(' ').split(' ')
+
+            mapping.extend(string_to_split)
+
+            # update char index
+            cur_sentence_index = next_sentence_index
+
+    return mapping
