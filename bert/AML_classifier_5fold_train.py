@@ -37,7 +37,7 @@ else:
 
     # data
     args['test_size'] = 0.2
-    args['kfold'] = 2
+    args['kfold'] = 5
 
     # training
     args['seed'] = 7
@@ -45,7 +45,6 @@ else:
     args['accumulation_steps'] = 8
     args['save_steps'] = 100
     args['epochs'] = 10
-    args['kfold'] = 2
 
     # optimizer
     args['weight_decay'] = 0.01

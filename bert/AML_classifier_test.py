@@ -16,20 +16,26 @@ from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import accuracy_score
 import transformers
 
+from ckiptagger import data_utils, WS, POS, NER
+
 # self-made module
 import data
 import scorer
 
 # constant parameter setting
-experiment_no = 11
-epoch = 5
+experiment_no = 1
+epoch = 8
+model_5fold = False
 
 # data_path set None if use origin training data to evaluate
 data_path = '../data/news.csv'
 evaluate_train = True
 
 # config
-if os.path.exists(f'model/bert-{experiment_no}/config.pkl'):
+if model_5fold is True and os.path.exists(f'model_5fold/bert-{experiment_no}/config.pkl'):
+    with open(f'model_5fold/bert-{experiment_no}/config.pkl', 'rb') as f:
+        args = pickle.load(f)
+elif model_5fold is False and os.path.exists(f'model/bert-{experiment_no}/config.pkl'):
     with open(f'model/bert-{experiment_no}/config.pkl', 'rb') as f:
         args = pickle.load(f)
 else:
@@ -52,7 +58,7 @@ config = transformers.BertConfig.from_pretrained(args['model_name'], num_labels=
 tokenizer = transformers.BertTokenizer.from_pretrained(args['model_name'])
 
 # load data
-if data_path is None or data_path == '../data/news.csv':
+if data_path is None:
     data_df = data.load_data(data_path=args['train_file_path'],
                              news_path=args['train_news_path'])
 else:
@@ -75,7 +81,6 @@ else:
                                                   shuffle=False,
                                                   collate_fn=dataset.collate_fn)
 
-# decode function
 def decode(tokenizer, input_id, label_id):
     special_token_ids = [i for i in range(0, 106)]
     all_name, temp_name = [], ''
@@ -93,12 +98,14 @@ def decode(tokenizer, input_id, label_id):
 def predict(tokenizer, model, stage, dataloader):
     tqdm_desc = 'train predict' if stage == 'train' else 'test predict'
     epoch_iterator = tqdm(dataloader, total=len(dataloader), desc=tqdm_desc, position=0)
-    input_id, label, prediction = None, None, None
+    input_id, label, prediction, news = None, None, None, None
 
     # get label and prediction
     model.eval()
     for batch in epoch_iterator:
-        batch = tuple(t.to(device) for t in batch)
+        batch_label = batch[-2]
+        batch = tuple(t.to(device) for t in batch[:-2])
+
         with torch.no_grad():
             inputs = {
                 'input_ids': batch[0], 'attention_mask': batch[1],
@@ -108,44 +115,25 @@ def predict(tokenizer, model, stage, dataloader):
 
             if label is None:
                 input_id = batch[0].detach().cpu().numpy()
-                label = batch[4].detach().cpu().numpy()
+                label = batch_label
                 prediction = outputs[0].detach().cpu().numpy()
             else:
                 input_id = np.append(input_id, batch[0].detach().cpu().numpy(), axis=0)
-                label = np.append(label, batch[4].detach().cpu().numpy(), axis=0)
+                label.extend(batch_label)
                 prediction = np.append(prediction, outputs[0].detach().cpu().numpy(), axis=0)
 
     prediction = np.argmax(prediction, axis=2)
 
     # decode prediction
-    all_label = [decode(tokenizer, input_id[i], label[i])
-                 for i in range(len(label))]
-    all_prediction = [decode(tokenizer, input_id[i], prediction[i])
-                      for i in range(len(prediction))]
+    label = [set(name) for name in label]
+    prediction = [decode(tokenizer, input_id[i], prediction[i])
+                  for i in range(len(prediction))]
 
-    # filter prediction
-    # final_prediction = []
-    # for prediction in all_prediction:
-    #     temp_prediction = [name for name in prediction if len(name) >= 3]
-
-    #     two_names = [name for name in prediction if len(name) == 2]
-    #     three_names = [name for name in prediction if len(name) >= 3]
-
-    #     for two_name in two_names:
-    #         contain_name = [two_name in three_name
-    #                         for three_name in three_names]
-    #         if not any(contain_name):
-    #             temp_prediction.append(two_name)
-
-    #     final_prediction.append(set(temp_prediction))
-        
-
-    return all_label, all_prediction
-    # return all_label, final_prediction
+    return label, prediction
 
 # load model
 model = transformers.BertForTokenClassification.from_pretrained(
-    f'model/bert-{experiment_no}/epoch-{epoch}/pytorch_model.bin',
+    f'{args["output_path"]}/epoch-{epoch}/pytorch_model.bin',
     config=config)
 model.to(device)
 

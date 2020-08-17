@@ -10,24 +10,36 @@ from tqdm import tqdm
 import transformers
 
 # self-made module
-from bert import data # pylint: disable=import-error
+# pylint: disable=import-error
+from bert import data
 
 # decode function
-def decode(tokenizer, input_id, label_id):
-    special_token_ids = [i for i in range(0, 106)]
+def decode(news, tokenizer, input_id, label_id):
+    # get id and token mapping
+    unk_token_id = tokenizer._convert_token_to_id(tokenizer.unk_token)
+    pad_token_id = tokenizer._convert_token_to_id(tokenizer.pad_token)
+    tokens = tokenizer.convert_ids_to_tokens(input_id)
+    mapping = data.map_unk(news, tokens, input_id, unk_token_id,
+                           tokenizer.all_special_tokens)
+
+    # decode
     all_name, temp_name = [], ''
     for index, label in enumerate(label_id):
-        if label == 1 and input_id[index] not in special_token_ids:
-            temp_name += tokenizer.decode(int(input_id[index]))
+        if label == 1 and input_id[index] != pad_token_id:
+            temp_name += mapping[index]
         elif label == 0 and temp_name != '':
             if len(temp_name) >= 3:
-                all_name.append(temp_name)
+                if len(temp_name) >= 5:
+                    temp_name = [temp_name[i:i+3] for i in range(0, len(temp_name), 3)]
+                    all_name.extend(temp_name)
+                else:
+                    all_name.append(temp_name)
             temp_name = ''
 
     return list(set(all_name))
 
 # predict function
-def predict(tokenizer, model, dataloader, device):
+def predict(news, tokenizer, model, dataloader, device):
     tqdm_desc = 'test predict'
     epoch_iterator = tqdm(dataloader, total=len(dataloader), desc=tqdm_desc, position=0)
     input_id, prediction = None, None
@@ -51,14 +63,14 @@ def predict(tokenizer, model, dataloader, device):
                 prediction = np.append(prediction, outputs[0].detach().cpu().numpy(), axis=0)
 
     prediction = np.argmax(prediction, axis=2)
-    names = decode(tokenizer, input_id[0], prediction[0])
+    names = decode(news, tokenizer, input_id[0], prediction[0])
 
     return names
 
-def test(model, news, experiment_no, epoch):
+def test(model_path, model, news):
     # config
-    if os.path.exists(f'../bert/model/bert-{experiment_no}/config.pkl'):
-        with open(f'../bert/model/bert-{experiment_no}/config.pkl', 'rb') as f:
+    if os.path.exists(f'{model_path}/config.pkl'):
+        with open(f'{model_path}/config.pkl', 'rb') as f:
             args = pickle.load(f)
     else:
         raise FileNotFoundError('Config not found')
@@ -91,7 +103,7 @@ def test(model, news, experiment_no, epoch):
     model.to(device)
 
     # get predict result
-    test_predict = predict(tokenizer, model, dataloader, device)
+    test_predict = predict(news, tokenizer, model, dataloader, device)
     print(f'predict result \t time: {int(time.time())}\n')
 
     return test_predict
