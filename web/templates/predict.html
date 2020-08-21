@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<title>AML 焦點人物預測</title>
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<style>
+    div.overflow {
+        resize: vertical;
+        min-height: 250px;
+    }
+</style>
+<body>
+    <div class="w3-container">
+        <h2>AML 焦點人物預測</h2>
+    </div>
+    <br><br>
+    <form class='w3-container' action='/' method='POST'>
+        <h3>新聞網址：</h3>
+        {% if url != None %}
+        <input type='text' class='w3-input' id='url' placeholder='新聞網址' name='url' value={{url}}>
+        {% else %}
+        <input type='text' class='w3-input' id='url' placeholder='新聞網址' name='url'>
+        {% endif %}
+        <br>
+        <input type="button" class="w3-button w3-red" id="clear" value="清除">
+        <button class="w3-button w3-green">送出</button>
+        <br><br>
+        <h3>新聞內容：</h3>
+        <div class='w3-container w3-border overflow'>
+            {% if content != None %}{{content}}{% endif %}
+        </div>
+        <br>
+        <h3>
+            是否為 AML 新聞：
+            {% if AML != None and AML|length > 0 %} 是
+            {% elif AML != None and AML|length == 0 %} 否
+            {% endif %}
+        </h3>
+        <br>
+        <h3>AML 焦點人物：{% if AML != None %}{{AML}}{% endif %}</h3>
+    </form>
+</body>
+<script>
+    document.getElementById("clear").addEventListener("click", clear);
+    function clear() {
+        document.getElementById('url').value = '';
+    }
+</script>
+</html>
